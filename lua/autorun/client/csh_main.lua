@@ -22,13 +22,22 @@ local COMP = {
     lowcolor_2 = Color(255, 82, 82, 255),
 }
 
-surface.CreateFont("CustomHUDFont", {
-    font = "Montserrat Medium",
-    size = 24,
-    weight = 500,
-    antialias = true,
-    shadow = false
-})
+local font = false 
+
+local function createfont()
+    if font then
+        return 
+    else
+        surface.CreateFont("CustomHUDFont", {
+            font = "Montserrat Medium",
+            size = 24,
+            weight = 500,
+            antialias = true,
+            shadow = false
+        })
+        font = true 
+    end
+end
 
 local icons = {
     healthIcon = Material("customhud/healthicon.png"),
@@ -77,9 +86,7 @@ function mainf.updateConfig()
 end
 
 local function draw_h(text, mat, textCol, iconCol, x)
-    --print(string.format("box: %s; icon: %s; text: %s", COLORS.box, COLORS.icon, COLORS.text))
-
-    surface.SetFont("CustomHUDFont")
+    createfont()
 
     local w = CONSTANTS.padL + CONSTANTS.iconW + 10 + surface.GetTextSize(text) + CONSTANTS.padR
     w = math.max(w, 100)
@@ -141,6 +148,15 @@ end
 hook.Add("InitPostEntity", "CustomHUD_InitConfig", function()
     CONFIG.loadConfig()
     mainf.updateConfig()
+    createfont()
+
+    timer.Simple(1, function()
+        if not createfont() then
+            timer.Simple(2, function()
+                createfont()
+            end)
+        end
+    end)
 end)
 
 hook.Add("HUDShouldDraw", "HideDefaultHUD", function(name)
@@ -158,4 +174,8 @@ end)
 hook.Add("HUDPaint", "CSH_CustomHUD", function()
     if not COMP.hud then return end
     main()
+end)
+
+hook.Add("OnReloaded", "CustomHUD_Cleanup", function()
+    font = false
 end)
