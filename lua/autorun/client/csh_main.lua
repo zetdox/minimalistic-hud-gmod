@@ -2,180 +2,151 @@ if SERVER then return end
 
 mainf = mainf or {}
 
-local CONSTANTS = {
-    baseX = 5,h = 55,gap = 5,padL = 15,padR = 15,iconW = 25,iconH = 25
+local BASE = {
+    gap      = 5,
+    padL     = 15,
+    padR     = 15,
+    height   = 55,
+    icon     = 25,
+    text     = 24,
+    minW     = 100,
 }
 
-local screenH = ScrH()
-local baseY = screenH - 60
-local iconY = baseY + (CONSTANTS.h - CONSTANTS.iconH) / 2
-local hpTextColor, hpIconColor
-local COLORS = {box  = Color(30, 30, 40, 250),
-    text = Color(255, 255, 255, 255),
-    icon = Color(255, 255, 255, 255)}
+local scale      = 1
+local iconSize   = 25
+local tileH      = 55
+local padL, padR, gap = 15,15,5
+local corner     = 5
 
-local COMP = {
-    lowhp = true,
-    hud = true,
-    corner = 5,
-    lowcolor = Color(255, 82, 82, 255),
-    lowcolor_2 = Color(255, 82, 82, 255),
-}
+local baseY = ScrH() - 60
+local posY  = 60
+local iconY = 0
 
-local font = false 
-
-local function createfont()
-    if font then
-        return 
-    else
-        surface.CreateFont("CustomHUDFont", {
-            font = "Montserrat Medium",
-            size = 24,
-            weight = 500,
-            antialias = true,
-            shadow = false
-        })
-        font = true 
-    end
-end
+local COLORS = { box = Color(30,30,40,250), text = Color(255,255,255), icon = Color(255,255,255) }
+local COMP   = { lowhp = true, hud = true }
 
 local icons = {
-    healthIcon = Material("customhud/healthicon.png"),
-    armorIcon = Material("customhud/armoricon.png"),
-    ammoIcon = Material("customhud/ammoicon.png"),
+    health = Material("customhud/healthicon.png"),
+    armor  = Material("customhud/armoricon.png"),
+    ammo   = Material("customhud/ammoicon.png"),
 }
 
+local function CreateFont(size)
+    surface.CreateFont("CustomHUDFont", {
+        font      = "Montserrat Medium",
+        size      = math.Round(size),
+        weight    = 500,
+        antialias = true,
+    })
+end
+
 function mainf.updateConfig()
-    if not CONFIG or not CONFIG.Config then
-        print("[DEBUG] CONFIG не загружен!")
-        return
-    end
+    if not CONFIG.Config then return end
 
-    local a_bg     = CONFIG.getValue("RGBalpha.bg", 250)
-    local a_texts  = CONFIG.getValue("RGBalpha.texts", 255)
-    local a_icons  = CONFIG.getValue("RGBalpha.icons", 255)
+    scale = math.Clamp(CONFIG.getValue("size.all",100)/100, 0.3, 3)
 
-    COLORS.text  = Color(
-        CONFIG.getValue("textsColor.r", 255),
-        CONFIG.getValue("textsColor.g", 255),
-        CONFIG.getValue("textsColor.b", 255),
-        a_texts
-    )
+    local ib = CONFIG.getValue("size.icons",25)
+    local tb = CONFIG.getValue("size.texts",24)
 
-    COLORS.icon  = Color(
-        CONFIG.getValue("iconsColor.r", 255),
-        CONFIG.getValue("iconsColor.g", 255),
-        CONFIG.getValue("iconsColor.b", 255),
-        a_icons
-    )
+    iconSize = math.Round(BASE.icon * scale * (ib/BASE.icon))
+    local textSize = math.Round(BASE.text * scale * (tb/BASE.text))
 
-    COLORS.box   = Color(
-        CONFIG.getValue("boxesColor.r", 30),
-        CONFIG.getValue("boxesColor.g", 30),
-        CONFIG.getValue("boxesColor.b", 40),
-        a_bg
-    )
+    tileH   = math.Round(BASE.height * scale)
+    padL    = math.Round(BASE.padL * scale)
+    padR    = math.Round(BASE.padR * scale)
+    gap     = math.Round(BASE.gap * scale)
+    corner  = math.Round(CONFIG.getValue("boxesCorner",5) * scale)
 
-    COLORS.alpha = { bg = a_bg, texts = a_texts, icons = a_icons }
+    local a = CONFIG.getValue("RGBalpha.bg",250)
+    COLORS.box = Color(CONFIG.getValue("boxesColor.r",30), CONFIG.getValue("boxesColor.g",30), CONFIG.getValue("boxesColor.b",40), a)
+    COLORS.text = Color(CONFIG.getValue("textsColor.r",255), CONFIG.getValue("textsColor.g",255), CONFIG.getValue("textsColor.b",255), CONFIG.getValue("RGBalpha.texts",255))
+    COLORS.icon = Color(CONFIG.getValue("iconsColor.r",255), CONFIG.getValue("iconsColor.g",255), CONFIG.getValue("iconsColor.b",255), CONFIG.getValue("RGBalpha.icons",255))
 
-    COMP.lowhp   = CONFIG.getValue("lowhp_color", true)
-    COMP.hud     = CONFIG.getValue("enabled", true)
-    COMP.corner  = CONFIG.getValue("boxesCorner", 5)
-    COMP.lowcolor   = Color(255, 82, 82, a_texts)
-    COMP.lowcolor_2 = Color(255, 82, 82, a_icons)
+    COMP.lowhp = CONFIG.getValue("lowhp_color", true)
+    COMP.hud   = CONFIG.getValue("enabled", true)
+
+    posY = CONFIG.getValue("position.y", 60)
+    baseY = ScrH() - posY
+    iconY = baseY + (tileH - iconSize) / 2
+
+    CreateFont(textSize)
 end
 
-local function draw_h(text, mat, textCol, iconCol, x)
-    createfont()
+local function DrawTile(text, mat, colText, colIcon, x)
+    surface.SetFont("CustomHUDFont")
+    local tw, th = surface.GetTextSize(text)
 
-    local w = CONSTANTS.padL + CONSTANTS.iconW + 10 + surface.GetTextSize(text) + CONSTANTS.padR
-    w = math.max(w, 100)
-    draw.RoundedBox(COMP.corner, x, iconY - 15, w, CONSTANTS.h, COLORS.box)
+    local refW = surface.GetTextSize("100")
+    local textZoneW = math.max(tw, refW)
+
+    local totalW = padL + iconSize + 10 + textZoneW + padR
+    local w = math.max(totalW, BASE.minW * scale)
+
+    draw.RoundedBox(corner, x, baseY, w, tileH, COLORS.box)
+
     if mat and not mat:IsError() then
-        surface.SetDrawColor(iconCol)
+        surface.SetDrawColor(colIcon or COLORS.icon)
         surface.SetMaterial(mat)
-        surface.DrawTexturedRect(x + CONSTANTS.padL, iconY, CONSTANTS.iconW, CONSTANTS.iconH)
+        surface.DrawTexturedRect(x + padL, iconY, iconSize, iconSize)
     end
-    draw.SimpleText(text, "CustomHUDFont", x + w * 0.5 + CONSTANTS.iconW * 0.5 + 5, iconY, textCol, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
-    return x + w + CONSTANTS.gap
+
+    local textStartX = x + w - padR - textZoneW
+    local textX = textStartX + textZoneW / 2
+    local textY = baseY + (tileH - th) / 2
+
+    local offsetX = 0
+    local offsetY = -1
+
+    draw.SimpleText(text, "CustomHUDFont", textX + offsetX, textY + offsetY, colText or COLORS.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
+
+    return x + w + gap
 end
 
-local function main()
-    local plr = LocalPlayer()
+hook.Add("HUDPaint", "CustomHUD_Draw", function()
+    if not COMP.hud then return end
 
-    if IsValid(plr) then
+    local ply = LocalPlayer()
+    if not IsValid(ply) then return end
+    if not CONFIG then return end
 
-        --
-        local newScreenH = ScrH()
-
-        if newScreenH ~= screenH then
-            screenH = newScreenH
-            baseY = screenH - 60
-            iconY = baseY + (CONSTANTS.h - CONSTANTS.iconH) / 2
-        end
-        --
-
-        local hp = math.max(plr:Health(), 0)
-        local armor = math.max(plr:Armor(), 0)
-        local wep = plr:GetActiveWeapon()
-        --
-
-        local x = CONSTANTS.baseX
-
-        if hp > 50 then
-            x = draw_h(tostring(hp), icons.healthIcon, COLORS.text, COLORS.icon, x)
-        else
-            if COMP.lowhp then
-                x = draw_h(tostring(hp), icons.healthIcon, COMP.lowcolor, COMP.lowcolor_2, x)
-            else
-                x = draw_h(tostring(hp), icons.healthIcon, COLORS.text, COLORS.icon, x)
-            end
-        end
-
-        x = draw_h(tostring(armor), icons.armorIcon, COLORS.text, COLORS.icon, x)
-        --
-
-        if IsValid(wep) and wep:GetPrimaryAmmoType() > 0 then
-            local clip = wep:Clip1()
-            local ammo = plr:GetAmmoCount(wep:GetPrimaryAmmoType())
-            local ammoText = clip >= 0 and (clip .. " / " .. ammo) or tostring(ammo)
-            draw_h(ammoText, icons.ammoIcon, COLORS.text, COLORS.icon, x)
-        end
+    if ScrH() ~= baseY + posY then
+        baseY = ScrH() - posY
+        iconY = baseY + (tileH - iconSize) / 2
     end
-end
 
---hooks
+    local x = CONFIG.getValue("position.x", 5)
+
+    local hp = ply:Health()
+    local armor = ply:Armor()
+
+    -- HP
+    local hpCol = (hp <= 50 and COMP.lowhp) and Color(255,82,82) or COLORS.text
+    local hpIconCol = (hp <= 50 and COMP.lowhp) and Color(255,82,82) or COLORS.icon
+    x = DrawTile(tostring(hp), icons.health, hpCol, hpIconCol, x)
+
+    -- Armor
+    x = DrawTile(tostring(armor), icons.armor, COLORS.text, COLORS.icon, x)
+
+    -- Ammo
+    local wep = ply:GetActiveWeapon()
+    if IsValid(wep) and wep:GetPrimaryAmmoType() > 0 then
+        local clip = wep:Clip1()
+        local reserve = ply:GetAmmoCount(wep:GetPrimaryAmmoType())
+        local str = clip >= 0 and (clip.." / "..reserve) or tostring(reserve)
+        DrawTile(str, icons.ammo, COLORS.text, COLORS.icon, x)
+    end
+end)
+
+
+
 hook.Add("InitPostEntity", "CustomHUD_InitConfig", function()
+    if not CONFIG then return end
     CONFIG.loadConfig()
     mainf.updateConfig()
-    createfont()
-
-    timer.Simple(1, function()
-        if not createfont() then
-            timer.Simple(2, function()
-                createfont()
-            end)
-        end
-    end)
 end)
 
-hook.Add("HUDShouldDraw", "HideDefaultHUD", function(name)
-    if COMP.hud then
-        local hideElements = {
-            CHudHealth = true,
-            CHudBattery = true,
-            CHudAmmo = true,
-            CHudSecondaryAmmo = true
-        }
-        return not hideElements[name]
-    end
-end)
-
-hook.Add("HUDPaint", "CSH_CustomHUD", function()
+hook.Add("HUDShouldDraw", "CustomHUD_HideDefault", function(name)
     if not COMP.hud then return end
-    main()
-end)
-
-hook.Add("OnReloaded", "CustomHUD_Cleanup", function()
-    font = false
+    local hide = { CHudHealth=true, CHudBattery=true, CHudAmmo=true, CHudSecondaryAmmo=true }
+    return not hide[name]
 end)
