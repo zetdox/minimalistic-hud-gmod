@@ -29,13 +29,57 @@ hook.Add("PopulateToolMenu", "csh_settings", function()
         local corner = p:NumSlider("Background Corner", "", 0, 50, 0)
         corner:SetValue(CONFIG.getValue("boxesCorner", 5))
 
+        local pos_x = p:NumSlider("Pos X", "", 0, 1715, 0)
+        pos_x:SetValue(CONFIG.getValue("position.x", 5))
+
+        local pos_y = p:NumSlider("Pos Y", "", 55, 1080, 0)
+        pos_y:SetValue(CONFIG.getValue("position.y", 60))
+
+        local size_all = p:NumSlider("Size All", "", 10, 300, 0)
+        size_all:SetValue(CONFIG.getValue("size.all", 100))
+        size_all.OnValueChanged = function(self, value)
+            local val = math.Round(value)
+            CONFIG.editConfig("size.all", val)
+            mainf.updateConfig()
+        end
+
+        local size_icons = p:NumSlider("Size Icons (base)", "", 10, 100, 0)
+        size_icons:SetValue(CONFIG.getValue("size.icons", 25))
+        size_icons.OnValueChanged = function(self, value)
+            local val = math.Round(value)
+            CONFIG.editConfig("size.icons", val)
+            mainf.updateConfig()
+        end
+
+        local size_texts = p:NumSlider("Size Texts (base)", "", 10, 100, 0)
+        size_texts:SetValue(CONFIG.getValue("size.texts", 24))
+        size_texts.OnValueChanged = function(self, value)
+            local val = math.Round(value)
+            CONFIG.editConfig("size.texts", val)
+            mainf.updateConfig()
+        end
+
         corner.OnValueChanged = function(self, value)
             local val = math.Round(value)
             CONFIG.editConfig("boxesCorner", val)
             mainf.updateConfig()
         end
 
+        pos_x.OnValueChanged = function(self, value)
+            local val = math.Round(value)
+            CONFIG.editConfig("position.x", val)
+            mainf.updateConfig()
+        end
+
+        pos_y.OnValueChanged = function(self, value)
+            local val = math.Round(value)
+            CONFIG.editConfig("position.y", val)
+            mainf.updateConfig()
+        end
+
         p:Help("Texts Color:")
+
+        ---------------------------------------------------------
 
         local container = p:Add("DPanel")
         container:Dock(TOP)
@@ -119,6 +163,8 @@ hook.Add("PopulateToolMenu", "csh_settings", function()
             mainf.updateConfig()
         end
 
+        ---------------------------------------------------------
+
         local reset = p:Button("Reset settings")
         reset.DoClick = function()
             CONFIG.createConfig()
@@ -127,6 +173,11 @@ hook.Add("PopulateToolMenu", "csh_settings", function()
             toggle:SetValue(CONFIG.getValue("enabled", true) and 1 or 0)
             toggle2:SetValue(CONFIG.getValue("lowhp_color", true) and 1 or 0)
             corner:SetValue(CONFIG.getValue("boxesCorner", 5))
+            pos_x:SetValue(CONFIG.getValue("position.x", 5))
+            pos_y:SetValue(CONFIG.getValue("position.y", 60))
+            size_icons:SetValue(CONFIG.getValue("size.icons", 25))
+            size_texts:SetValue(CONFIG.getValue("size.texts", 24))
+            size_all:SetValue(CONFIG.getValue("size.all", 100))
 
             mixer:SetColor(Color(
             CONFIG.getValue("textsColor.r", 255),
